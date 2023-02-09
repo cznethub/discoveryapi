@@ -148,6 +148,42 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         }
     ]
     return str(await request.app.mongodb["cznet"].aggregate(pipeline).to_list(length=None))
+
+
+@app.get("/typeahead")
+async def typeahead(request: Request, term: str, pageSize: int = 30):
+    autoCompletePaths = ['name', 'description', 'keywords']
+    should = [{'autocomplete': {'query': term, 'path': key, 'fuzzy': {'maxEdits': 1}}} for key in autoCompletePaths]   
+
+    stages = []
+
+    stages.append
+    (
+        {
+        '$search': {
+            'index': 'fuzzy_search',
+            'compound': {
+                'should': should,
+            },
+            'highlight': { 'path': autoCompletePaths }
+            }
+        }
+    )
+
+    stages.append
+    (
+        {
+            '$limit': +pageSize
+        },
+        {
+            '$project': {
+                'highlights': { '$meta': 'searchHighlights' },
+                '_id': 0
+            }
+        }
+    )
+
+    return str(await request.app.mongodb["cznet"].aggregate(stages).to_list(length=None)) 
     
 
 
