@@ -1,16 +1,18 @@
 from datetime import datetime
 from functools import lru_cache
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 import uvicorn
+import json
 
 
 dotenv_file = '.env'
 
 class Settings(BaseModel):
-    connection_string: str
-    database_name: str
+    connection_string: str = "mongodb+srv://zoya:3t0ag8xuYFquioQz@cluster0.iouzjvv.mongodb.net/?retryWrites=true&w=majority"
+    database_name: str = "czo"
 
     class Config:
         env_file = dotenv_file
@@ -20,6 +22,14 @@ def get_settings():
     return Settings()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -147,7 +157,8 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
             }
         }
     ]
-    return str(await request.app.mongodb["cznet"].aggregate(pipeline).to_list(length=None))
+    result = await request.app.mongodb["cznet"].aggregate(pipeline).to_list(pageSize)
+    return json.loads(json.dumps(result, default=str))
 
 
 @app.get("/typeahead")
@@ -182,8 +193,8 @@ async def typeahead(request: Request, term: str, pageSize: int = 30):
             }
         }
     )
-
-    return str(await request.app.mongodb["cznet"].aggregate(stages).to_list(length=None)) 
+    result = await request.app.mongodb["cznet"].aggregate(stages).to_list(pageSize)
+    return json.loads(json.dumps(result, default=str))
     
 
 
