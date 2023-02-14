@@ -55,7 +55,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     filters = []
     
     if publishedStart:
-        filters.append({
+        filters.extend({
             'range': {
             'path': 'datePublished',
             'gte': datetime(publishedStart),
@@ -64,7 +64,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     })
     
     if dataCoverageStart:
-        filters.append({
+        filters.extend({
             'range': {
                 'path': 'temporalCoverage.start',
                 'gte': datetime(dataCoverageStart)
@@ -72,7 +72,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if dataCoverageStart:
-        filters.append({
+        filters.extend({
             'range': {
                 'path': 'temporalCoverage.end',
                 'gte': datetime(dataCoverageEnd + 1)
@@ -80,7 +80,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if creatorName:
-        must.append({
+        must.extend({
             'text': {
                 'path': 'creator.@list.name',
                 'query': creatorName
@@ -88,7 +88,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if providerName:
-        must.append({
+        must.extend({
             'text': {
                 'path': 'provider.name',
                 'query': providerName
@@ -96,14 +96,14 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
 
     if contentType:
-        must.append({
+        must.extend({
             'text': {
                 'path': '@type',
                 'query': contentType
             }
         })
     
-    stages.append(
+    stages.extend(
         {
             '$search': {
                 'index': 'fuzzy_search',
@@ -119,23 +119,23 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     
     # Sort needs to happen before pagination
     if sortBy:
-        stages.append({
+        stages.extend({
             '$sort': { 
                 [sortBy]: 1
             }
         })
     
-    stages.append(
+    stages.extend(
       {
         '$skip': (pageNumber - 1) * pageSize
       }
     )
-    stages.append(
+    stages.extend(
       {
         '$limit': pageSize
       },
     )
-    stages.append(
+    stages.extend(
       { 
         '$set': {
           'score': { '$meta': 'searchScore' },
@@ -164,11 +164,12 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
 @app.get("/typeahead")
 async def typeahead(request: Request, term: str, pageSize: int = 30):
     autoCompletePaths = ['name', 'description', 'keywords']
+    highlightsPaths = ['name', 'description', 'keywords']
     should = [{'autocomplete': {'query': term, 'path': key, 'fuzzy': {'maxEdits': 1}}} for key in autoCompletePaths]   
 
     stages = []
 
-    stages.append
+    stages.extend
     (
         {
         '$search': {
@@ -176,16 +177,13 @@ async def typeahead(request: Request, term: str, pageSize: int = 30):
             'compound': {
                 'should': should,
             },
-            'highlight': { 'path': autoCompletePaths }
+            'highlight': { 'path': highlightsPaths }
             }
         }
     )
 
-    stages.append
+    stages.extend
     (
-        {
-            '$limit': +pageSize
-        },
         {
             '$project': {
                 'highlights': { '$meta': 'searchHighlights' },
