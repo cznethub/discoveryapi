@@ -55,7 +55,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     filters = []
     
     if publishedStart:
-        filters.extend({
+        filters.append({
             'range': {
             'path': 'datePublished',
             'gte': datetime(publishedStart),
@@ -64,7 +64,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     })
     
     if dataCoverageStart:
-        filters.extend({
+        filters.append({
             'range': {
                 'path': 'temporalCoverage.start',
                 'gte': datetime(dataCoverageStart)
@@ -72,7 +72,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if dataCoverageStart:
-        filters.extend({
+        filters.append({
             'range': {
                 'path': 'temporalCoverage.end',
                 'gte': datetime(dataCoverageEnd + 1)
@@ -80,7 +80,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if creatorName:
-        must.extend({
+        must.append({
             'text': {
                 'path': 'creator.@list.name',
                 'query': creatorName
@@ -88,7 +88,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
     
     if providerName:
-        must.extend({
+        must.append({
             'text': {
                 'path': 'provider.name',
                 'query': providerName
@@ -96,14 +96,14 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         })
 
     if contentType:
-        must.extend({
+        must.append({
             'text': {
                 'path': '@type',
                 'query': contentType
             }
         })
     
-    stages.extend(
+    stages.append(
         {
             '$search': {
                 'index': 'fuzzy_search',
@@ -119,23 +119,23 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     
     # Sort needs to happen before pagination
     if sortBy:
-        stages.extend({
+        stages.append({
             '$sort': { 
                 [sortBy]: 1
             }
         })
     
-    stages.extend(
+    stages.append(
       {
         '$skip': (pageNumber - 1) * pageSize
       }
     )
-    stages.extend(
+    stages.append(
       {
         '$limit': pageSize
       },
     )
-    stages.extend(
+    stages.append(
       { 
         '$set': {
           'score': { '$meta': 'searchScore' },
@@ -167,30 +167,57 @@ async def typeahead(request: Request, term: str, pageSize: int = 30):
     highlightsPaths = ['name', 'description', 'keywords']
     should = [{'autocomplete': {'query': term, 'path': key, 'fuzzy': {'maxEdits': 1}}} for key in autoCompletePaths]   
 
-    stages = []
-
-    stages.extend
-    (
-        {
+    stages = [
+    {
         '$search': {
-            'index': 'fuzzy_search',
+            'index': 'fuzzy_search', 
             'compound': {
-                'should': should,
-            },
-            'highlight': { 'path': highlightsPaths }
+                'should': [
+                    {
+                        'autocomplete': {
+                            'query': term, 
+                            'path': 'description', 
+                            'fuzzy': {
+                                'maxEdits': 1
+                            }
+                        }
+                    },
+                    {
+                        'autocomplete': {
+                            'query': term, 
+                            'path': 'name', 
+                            'fuzzy': {
+                                'maxEdits': 1
+                            }
+                        }
+                    },
+                    {
+                        'autocomplete': {
+                            'query': term, 
+                            'path': 'keywords', 
+                            'fuzzy': {
+                                'maxEdits': 1
+                            }
+                        }
+                    }
+                ]
+            }, 
+            'highlight': {
+                'path': ['description', 'name', 'keywords']
             }
         }
-    )
-
-    stages.extend
-    (
-        {
-            '$project': {
-                'highlights': { '$meta': 'searchHighlights' },
-                '_id': 0
-            }
+    }, {
+        '$project': {
+            'name': 1, 
+            'description': 1, 
+            'keywords': 1, 
+            'highlights': {
+                '$meta': 'searchHighlights'
+            }, 
+            '_id': 0
         }
-    )
+    }
+]
     result = await request.app.mongodb["cznet"].aggregate(stages).to_list(pageSize)
     return json.loads(json.dumps(result, default=str))
     
