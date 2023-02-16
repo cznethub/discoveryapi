@@ -144,20 +144,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
       },
     )
 
-    pipeline = [
-        {
-            '$search': {
-                'index': 'fuzzy_search', 
-                'text': {
-                    'query': term, 
-                    'path': [
-                        'description', 'name', 'keywords'
-                    ]
-                }
-            }
-        }
-    ]
-    result = await request.app.mongodb["cznet"].aggregate(pipeline).to_list(pageSize)
+    result = await request.app.mongodb["cznet"].aggregate(stages).to_list(pageSize)
     return json.loads(json.dumps(result, default=str))
 
 
