@@ -36,6 +36,8 @@ async def startup_db_client():
     settings = get_settings()
     app.mongodb_client = AsyncIOMotorClient(settings.connection_string)
     app.mongodb = app.mongodb_client[settings.database_name]
+    clusters = await app.mongodb["cznet"].find().distinct('clusters')
+    app.clusters = json.loads(json.dumps(clusters, default=str))
 
 
 @app.on_event("shutdown")
@@ -214,7 +216,11 @@ async def typeahead(request: Request, term: str, pageSize: int = 30):
 ]
     result = await request.app.mongodb["cznet"].aggregate(stages).to_list(pageSize)
     return json.loads(json.dumps(result, default=str))
-    
+
+
+@app.get("/clusters")
+async def clusters(request: Request):
+    return request.app.clusters
 
 
 if __name__ == "__main__":
