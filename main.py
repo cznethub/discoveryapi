@@ -135,7 +135,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         stages.append({
             '$match': {
                 'clusters' : {
-                    '$in': clusters
+                    '$all': clusters
                 }
             }
         })
