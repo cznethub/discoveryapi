@@ -58,8 +58,15 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         filters.append({
             'range': {
             'path': 'datePublished',
-            'gte': datetime(publishedStart),
-            'lt': datetime(publishedEnd + 1) # +1 to include all of the publishedEnd year
+            'gte': datetime(publishedStart, 1, 1),
+        },
+    })
+    
+    if publishedEnd:
+        filters.append({
+            'range': {
+            'path': 'datePublished',
+            'lt': datetime(publishedEnd + 1, 1, 1) # +1 to include all of the publishedEnd year
         },
     })
     
@@ -67,15 +74,15 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
         filters.append({
             'range': {
                 'path': 'temporalCoverage.start',
-                'gte': datetime(dataCoverageStart)
+                'gte': datetime(dataCoverageStart, 1, 1)
             }
         })
     
-    if dataCoverageStart:
+    if dataCoverageEnd:
         filters.append({
             'range': {
                 'path': 'temporalCoverage.end',
-                'gte': datetime(dataCoverageEnd + 1)
+                'lt': datetime(dataCoverageEnd + 1, 1, 1)
             }
         })
     
