@@ -134,7 +134,7 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
     if sortBy:
         stages.append({
             '$sort': { 
-                [sortBy]: 1
+                sortBy: 1
             }
         })
     
