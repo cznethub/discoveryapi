@@ -2,10 +2,14 @@ from datetime import datetime
 from functools import lru_cache
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 import uvicorn
+import pandas
+import tempfile
 import json
+from os.path import join
 
 
 dotenv_file = '.env'
@@ -221,6 +225,23 @@ async def typeahead(request: Request, term: str, pageSize: int = 30):
 ]
     result = await request.app.mongodb["cznet"].aggregate(stages).to_list(pageSize)
     return result
+
+
+@app.get("/csv")
+async def sanitize(request: Request):
+    project = [{
+        '$project': {
+            'name': 1, 
+            'description': 1, 
+            'keywords': 1,
+            '_id': 0
+        }
+    }]
+    json_response = await request.app.mongodb["cznet"].aggregate(project).to_list(None)
+    df = pandas.read_json(json.dumps(json_response))
+    filename = "file.csv"
+    df.to_csv(filename)
+    return FileResponse(filename, filename=filename, media_type='application/octet-stream')
 
 
 @app.get("/clusters")
