@@ -1,6 +1,7 @@
 from datetime import datetime
 from functools import lru_cache
-from fastapi import FastAPI, Request
+from typing import List
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -49,7 +50,7 @@ async def shutdown_db_client():
     app.mongodb_client.close()
 
 @app.get("/search")
-async def search(request: Request, term: str, sortBy: str = None, contentType: str = None, providerName: str = None, creatorName: str = None, dataCoverageStart: int = None, dataCoverageEnd: int = None, publishedStart: int = None, publishedEnd: int = None, pageNumber: int = 1, pageSize: int = 30):
+async def search(request: Request, term: str, sortBy: str = None, contentType: str = None, providerName: str = None, creatorName: str = None, dataCoverageStart: int = None, dataCoverageEnd: int = None, publishedStart: int = None, publishedEnd: int = None, clusters: list[str] | None = Query(default=None), pageNumber: int = 1, pageSize: int = 30):
 
     searchPaths = ['name', 'description', 'keywords']
     highlightPaths = ['name', 'description', 'keywords', 'creator.@list.name']
@@ -130,6 +131,15 @@ async def search(request: Request, term: str, sortBy: str = None, contentType: s
       }
     )
     
+    if clusters:
+        stages.append({
+            '$match': {
+                'clusters' : {
+                    '$in': clusters
+                }
+            }
+        })
+
     # Sort needs to happen before pagination
     if sortBy:
         stages.append({
